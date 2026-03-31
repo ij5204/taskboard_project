@@ -3,26 +3,33 @@ import { createClient } from '@/utils/supabase/client'
 import { keys } from './queries'
 import type { Task, Status } from './types'
 
+async function getUserId(): Promise<string> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  return user.id
+}
+
 export function useCreateTask() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: {
-  title: string
-  description?: string
-  priority?: string
-  due_date?: string
-  assignee_id?: string
-  user_id: string
-}) => {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert(input)
-    .select()
-    .single()
-  if (error) throw new Error(error.message)
-  return data
-},
+      title: string
+      description?: string
+      priority?: string
+      due_date?: string
+      assignee_id?: string
+      user_id: string
+    }) => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert(input)
+        .select()
+        .single()
+      if (error) throw new Error(error.message)
+      return data
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   })
 }
@@ -36,7 +43,7 @@ export function useUpdateTaskStatus() {
         .from('tasks')
         .update({ status })
         .eq('id', id)
-      if (error) throw error
+      if (error) throw new Error(error.message)
     },
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: keys.tasks })
@@ -62,7 +69,7 @@ export function useUpdateTask() {
         .from('tasks')
         .update(updates)
         .eq('id', id)
-      if (error) throw error
+      if (error) throw new Error(error.message)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   })
@@ -74,7 +81,7 @@ export function useDeleteTask() {
     mutationFn: async (id: string) => {
       const supabase = createClient()
       const { error } = await supabase.from('tasks').delete().eq('id', id)
-      if (error) throw error
+      if (error) throw new Error(error.message)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   })
@@ -100,10 +107,10 @@ export function useCreateLabel() {
   return useMutation({
     mutationFn: async ({ name, color }: { name: string; color: string }) => {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getUserId()
       const { data, error } = await supabase
         .from('labels')
-        .insert({ name, color, user_id: user?.id ?? 'guest' })
+        .insert({ name, color, user_id: userId })
         .select()
         .single()
       if (error) throw new Error(error.message)
@@ -137,7 +144,7 @@ export function useRemoveTaskLabel() {
         .delete()
         .eq('task_id', taskId)
         .eq('label_id', labelId)
-      if (error) throw error
+      if (error) throw new Error(error.message)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tasks }),
   })
@@ -148,9 +155,10 @@ export function useCreateTeamMember() {
   return useMutation({
     mutationFn: async ({ name, avatar_color }: { name: string; avatar_color: string }) => {
       const supabase = createClient()
+      const userId = await getUserId()
       const { data, error } = await supabase
         .from('team_members')
-        .insert({ name, avatar_color, user_id: 'guest' })
+        .insert({ name, avatar_color, user_id: userId })
         .select()
         .single()
       if (error) throw new Error(error.message)

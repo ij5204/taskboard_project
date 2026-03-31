@@ -16,13 +16,7 @@ export function useAuth() {
         setLoading(false)
         return
       }
-
-      const { data, error } = await supabase.auth.signInAnonymously()
-      if (error) {
-        console.error('Auth error:', error.message)
-        setLoading(false)
-        return
-      }
+      const { data } = await supabase.auth.signInAnonymously()
       setSession(data.session)
       setLoading(false)
     }
@@ -30,9 +24,7 @@ export function useAuth() {
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session)
-      }
+      (_event, session) => setSession(session)
     )
 
     return () => subscription.unsubscribe()
